@@ -38,7 +38,9 @@ repositories {
 dependencies {
 	implementation files('opencv-410.jar')
 	implementation 'org.springframework.boot:spring-boot-starter'
-	implementation 'org.projectlombok:lombok'
+	// https://mvnrepository.com/artifact/com.github.sarxos/webcam-capture
+	compile group: 'org.bytedeco', name: 'javacv-platform', version: '1.5'
+	compile group: 'com.github.sarxos', name: 'webcam-capture', version: '0.3.12'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 	annotationProcessor 'org.projectlombok:lombok'

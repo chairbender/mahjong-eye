@@ -1,178 +1,103 @@
 package com.chairbender.mahjongeye;
 
-import javafx.event.ActionEvent;
+import com.github.sarxos.webcam.Webcam;
+import com.github.sarxos.webcam.WebcamResolution;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.image.Image;
+import javafx.scene.control.ComboBox;
 import javafx.scene.image.ImageView;
-import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.videoio.VideoCapture;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import javafx.scene.image.WritableImage;
 import org.springframework.stereotype.Controller;
 
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Controller
 public class MainController {
-    // the FXML button
     @FXML
-    private Button button;
-    // the FXML image view
+    private ComboBox<IndexedWebcam> webcams;
     @FXML
     private ImageView currentFrame;
 
-    // a timer for acquiring the video stream
-    private ScheduledExecutorService timer;
-    // the OpenCV object that realizes the video capture
-    private VideoCapture capture = new VideoCapture();
-    // a flag to change the button behavior
-    private boolean cameraActive = false;
-    // the id of the camera to be used
-    private static int cameraId = 0;
+    private ScheduledExecutorService frameGrabberExecutor = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture<Runnable> currentFrameGrabber;
 
-    /**
-     * The action triggered by pushing the button on the GUI
-     *
-     * @param event
-     *            the push button event
-     */
     @FXML
-    protected void startCamera(ActionEvent event)
-    {
-        if (!this.cameraActive)
-        {
-            // start the video capture
-            this.capture.open(cameraId);
-
-            // is the video stream available?
-            if (this.capture.isOpened())
-            {
-                this.cameraActive = true;
-
-                // grab a frame every 33 ms (30 frames/sec)
-                Runnable frameGrabber = new Runnable() {
-
-                    @Override
-                    public void run()
-                    {
-                        // effectively grab and process a single frame
-                        Mat frame = grabFrame();
-                        // convert and show the frame
-                        Image imageToShow = Utils.mat2Image(frame);
-                        updateImageView(currentFrame, imageToShow);
-                    }
-                };
-
-                this.timer = Executors.newSingleThreadScheduledExecutor();
-                this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
-
-                // update the button content
-                this.button.setText("Stop Camera");
-            }
-            else
-            {
-                // log the error
-                System.err.println("Impossible to open the camera connection...");
-            }
-        }
-        else
-        {
-            // the camera is not active at this point
-            this.cameraActive = false;
-            // update again the button content
-            this.button.setText("Start Camera");
-
-            // stop the timer
-            this.stopAcquisition();
-        }
+    private void initialize() {
+        initializeWebcamDropdown();
     }
 
-    /**
-     * Get a frame from the opened video stream (if any)
-     *
-     * @return the {@link Mat} to show
-     */
-    private Mat grabFrame()
-    {
-        // init everything
-        Mat frame = new Mat();
+    private void initializeWebcamDropdown() {
+        List<IndexedWebcam> indexedWebcamList = new ArrayList<>();
+        int i = 0;
+        for (Webcam cam : Webcam.getWebcams()) {
+            indexedWebcamList.add(new IndexedWebcam(i++, cam));
+        }
+        webcams.setItems(FXCollections.observableArrayList(indexedWebcamList));
 
-        // check if the capture is open
-        if (this.capture.isOpened())
-        {
-            try
-            {
-                // read the current frame
-                this.capture.read(frame);
+        webcams.getSelectionModel().selectedItemProperty().addListener(this::onSelectionChanged);
+    }
 
-                // if the frame is not empty, process it
-                if (!frame.empty())
-                {
-                    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2GRAY);
-                }
-
-            }
-            catch (Exception e)
-            {
-                // log the error
-                System.err.println("Exception during the image elaboration: " + e);
-            }
+    private void onSelectionChanged(ObservableValue<? extends IndexedWebcam> observableValue, IndexedWebcam oldValue, IndexedWebcam newValue) {
+        if (oldValue != null) {
+            stopWebcam(oldValue.webcam);
         }
 
-        return frame;
+        if (newValue == null) return;
+
+        newValue.webcam.setViewSize(WebcamResolution.VGA.getSize());
+        newValue.webcam.open();
+
+        // grab a frame every 33 ms (30 frames/sec)
+        Runnable grabber = () -> {
+            BufferedImage img = newValue.webcam.getImage();
+            final AtomicReference<WritableImage> ref = new AtomicReference<>();
+            ref.set(SwingFXUtils.toFXImage(img, ref.get()));
+            img.flush();
+            Utils.onFXThread(currentFrame.imageProperty(), ref.get());
+        };
+
+        this.currentFrameGrabber = (ScheduledFuture<Runnable>) this.frameGrabberExecutor.scheduleAtFixedRate(grabber, 0, 33, TimeUnit.MILLISECONDS);
     }
 
-    /**
-     * Stop the acquisition from the camera and release all the resources
-     */
-    private void stopAcquisition()
-    {
-        if (this.timer!=null && !this.timer.isShutdown())
-        {
-            try
-            {
-                // stop the timer
-                this.timer.shutdown();
-                this.timer.awaitTermination(33, TimeUnit.MILLISECONDS);
-            }
-            catch (InterruptedException e)
-            {
-                // log any exception
-                System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
-            }
+    private void stopWebcam(Webcam toStop) {
+        if (toStop == null) return;
+        if (this.currentFrameGrabber != null) {
+            this.currentFrameGrabber.cancel(true);
+        }
+        toStop.close();
+    }
+
+    public void shutdown() {
+        if (webcams.getValue() != null) {
+            stopWebcam(webcams.getValue().webcam);
         }
 
-        if (this.capture.isOpened())
-        {
-            // release the camera
-            this.capture.release();
+        frameGrabberExecutor.shutdown();
+    }
+
+    private class IndexedWebcam {
+        private int index;
+        private Webcam webcam;
+
+        public IndexedWebcam(int index, Webcam webcam) {
+            this.index = index;
+            this.webcam = webcam;
+        }
+
+        @Override
+        public String toString() {
+            return webcam.getName();
         }
     }
-
-    /**
-     * Update the {@link ImageView} in the JavaFX main thread
-     *
-     * @param view
-     *            the {@link ImageView} to update
-     * @param image
-     *            the {@link Image} to show
-     */
-    private void updateImageView(ImageView view, Image image)
-    {
-        Utils.onFXThread(view.imageProperty(), image);
-    }
-
-    /**
-     * On application close, stop the acquisition from the camera
-     */
-    protected void setClosed()
-    {
-        this.stopAcquisition();
-    }
-
 }
+
+

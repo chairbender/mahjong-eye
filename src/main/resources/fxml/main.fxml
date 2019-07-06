@@ -5,14 +5,15 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.ComboBox?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"  xmlns="http://javafx.com/javafx/10.0.1" fx:controller="it.polito.elite.teaching.cv.FXHelloCVController">
+<BorderPane xmlns:fx="http://javafx.com/fxml" xmlns="http://javafx.com/javafx/10.0.1" fx:controller="com.chairbender.mahjongeye.MainController">
     <bottom>
         <HBox alignment="center">
             <padding>
                 <Insets bottom="25" left="25" right="25" top="25" />
             </padding>
-            <Button fx:id="button" alignment="center" onAction="#startCamera" text="Start Camera" />
+            <ComboBox fx:id="webcams" />
         </HBox>
     </bottom>
     <center>
