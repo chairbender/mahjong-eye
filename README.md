@@ -9,14 +9,14 @@ Using computer vision to enhance the game of mahjong.
     PATH_TO_FX=C:\Programming\javafx-sdk-12.0.1\lib
     ````
 3. Download latest OpenCV for your system and extract it: https://opencv.org/releases/
-4. From the extracted opencv folder, put the correct JAR and dll into this project's folder. For example, on Windows 64 bit and opencv 4.1, you should copy the jar and dll from build/java/x64/ into mahjong-eye/.
+4. From the extracted opencv folder, put the correct JAR and dll into this project's folder. For example, on Windows 64 bit and opencv 4.1, you should copy the jar from build/java and the dll from build/java/x64/ into mahjong-eye/.
 4. If you are using a version of OpenCV newer than 4.1, modify the reference to the opencv-410.jar to point to the newer JAR you just copied.
 5. You can run using gradle wrapper:
 ````
 gradlew.bat run
 ````
 
-If you want to launch via your IDE:
+If you want to launch via your IDE (not recommended):
 1. Try to run the MahjongeyeApplication via your IDE. It will probably fail but create a run configuration.
 2. Add VM options to the run configuration to ensure JavaFX is loaded. It should look like below, but the add-modules argument should match the modules defined for javafx in build.gradle
    ```
