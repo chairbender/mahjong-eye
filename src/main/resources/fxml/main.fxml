@@ -30,7 +30,7 @@
         </HBox>
     </left>
     <center>
-        <ImageView fx:id="currentFrame" preserveRatio="true" fitWidth="400"/>
+        <ImageView fx:id="currentFrame" preserveRatio="true" fitWidth="800"/>
     </center>
     <right>
         <VBox alignment="CENTER" spacing="10">
