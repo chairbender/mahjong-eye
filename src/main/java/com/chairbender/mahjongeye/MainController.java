@@ -2,19 +2,28 @@ package com.chairbender.mahjongeye;
 
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamResolution;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
+import javafx.scene.layout.BorderPane;
 import org.opencv.core.*;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.springframework.stereotype.Controller;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +33,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @Controller
@@ -37,6 +48,8 @@ public class MainController {
     @FXML
     private ImageView currentFrame;
 
+    private Mat droppedImage;
+
     @FXML
     private TextField blockSize;
     @FXML
@@ -45,6 +58,9 @@ public class MainController {
     private TextField minContourArea;
     @FXML
     private TextField maxContourArea;
+
+    @FXML
+    private BorderPane borderPane;
 
     private List<MatProcessor> preprocessors;
 
@@ -62,6 +78,42 @@ public class MainController {
         minContourArea.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
         maxContourArea.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
         contourApproxEpsilon.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
+
+        borderPane.setOnDragOver(e -> {
+            final Dragboard db = e.getDragboard();
+
+            final boolean isAccepted = db.getFiles().get(0).getName().toLowerCase().endsWith(".png")
+                    || db.getFiles().get(0).getName().toLowerCase().endsWith(".jpeg")
+                    || db.getFiles().get(0).getName().toLowerCase().endsWith(".jpg");
+
+            if (db.hasFiles()) {
+                if (isAccepted) {
+                    e.acceptTransferModes(TransferMode.COPY);
+                }
+            } else {
+                e.consume();
+            }
+        });
+
+        borderPane.setOnDragDropped(e -> {
+            final Dragboard db = e.getDragboard();
+            boolean success = false;
+            if (db.hasFiles()) {
+                success = true;
+                // Only get the first file from the list
+                final File file = db.getFiles().get(0);
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println(file.getAbsolutePath());
+                        droppedImage = Imgcodecs.imread(file.getAbsolutePath());
+                        updateImage(droppedImage);
+                    }
+                });
+            }
+            e.setDropCompleted(success);
+            e.consume();
+        });
     }
 
     private void initializeWebcamDropdown() {
@@ -86,6 +138,9 @@ public class MainController {
         preprocessorSelection.setItems(FXCollections.observableArrayList(preprocessors));
         preprocessorSelection.getSelectionModel().selectedItemProperty().addListener(
                 (obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
+
+        //default to first item
+        preprocessorSelection.getSelectionModel().select(0);
     }
 
     //TODO: Maybe blur?
@@ -198,18 +253,9 @@ public class MainController {
         frameGrabberExecutor.shutdown();
     }
 
-    public void onSnap() {
-        BufferedImage img = webcamSelection.getValue().webcam.getImage();
-        Mat mat = null;
-        try {
-            mat = Utils.bufferedImage2Mat(img);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
-
+    private void updateImage(Mat newImage) {
         for (var processor : preprocessors) {
-            mat = processor.preprocess.apply(mat);
+            newImage = processor.preprocess.apply(newImage);
             if (preprocessorSelection.getValue().equals(processor)) {
                 break;
             }
@@ -217,7 +263,7 @@ public class MainController {
 
         BufferedImage finalImage = null;
         try {
-            finalImage = Utils.mat2BufferedImage(mat);
+            finalImage = Utils.mat2BufferedImage(newImage);
         } catch (IOException e) {
             e.printStackTrace();
             return;
@@ -227,6 +273,24 @@ public class MainController {
         finalImage.flush();
 
         Utils.onFXThread(currentFrame.imageProperty(), ref.get());
+    }
+
+    public void onSnap() {
+        //if there's no webcam selected and there's a dropped image, resnap the dropped image
+        if (webcamSelection.getValue() == null && droppedImage != null) {
+            updateImage(droppedImage);
+        } else if (webcamSelection.getValue() != null) {
+            //use the webcam
+            BufferedImage img = webcamSelection.getValue().webcam.getImage();
+            Mat mat = null;
+            try {
+                mat = Utils.bufferedImage2Mat(img);
+            } catch (IOException e) {
+                e.printStackTrace();
+                return;
+            }
+            updateImage(mat);
+        }
     }
 
     private class IndexedWebcam {

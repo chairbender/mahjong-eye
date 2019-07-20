@@ -52,7 +52,7 @@ public class MahjongeyeApplication extends Application {
 		rootNode = fxmlLoader.load();
 
 		primaryStage.setTitle("Hello World");
-		Scene scene = new Scene(rootNode, 800, 600);
+		Scene scene = new Scene(rootNode, 1024, 768);
 		primaryStage.setScene(scene);
 
 		//cleanup controller when window closes

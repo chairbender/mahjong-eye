@@ -11,7 +11,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
-<BorderPane xmlns:fx="http://javafx.com/fxml" xmlns="http://javafx.com/javafx/10.0.1" fx:controller="com.chairbender.mahjongeye.MainController">
+<BorderPane xmlns:fx="http://javafx.com/fxml" xmlns="http://javafx.com/javafx/10.0.1" fx:controller="com.chairbender.mahjongeye.MainController" fx:id="borderPane">
     <bottom>
         <HBox alignment="center">
             <padding>
@@ -30,7 +30,7 @@
         </HBox>
     </left>
     <center>
-        <ImageView fx:id="currentFrame" />
+        <ImageView fx:id="currentFrame" preserveRatio="true" fitWidth="400"/>
     </center>
     <right>
         <VBox alignment="CENTER" spacing="10">
