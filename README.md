@@ -24,5 +24,5 @@ If you want to launch via your IDE (not recommended):
    ```
 3. Try running again, it should now work.
 
-Note that if launching via IDE, you will need to update the --add-modules if you ever add a new module. This it is recommended to run via Gradle.
+Note that if launching via IDE, you will need to update the --add-modules if you ever add a new module. This is why it is better to just run it using gradle.
 
