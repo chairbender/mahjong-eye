@@ -4,7 +4,7 @@ Using computer vision to enhance the game of mahjong.
 # Setup
 1. Install Java 12 or higher SDK.
 1. Install JavaFX SDK 12 or higher: https://gluonhq.com/products/javafx/. 
-1. Set the PATH_TO_FX environment variable to point to the javafx/lib folder (you may need to restart your system to pick up this change). You can also do this via your IDE. For example, on my system it is:
+1. Set the PATH_TO_FX environment variable to point to the javafx/lib folder. On windows, you will need to restart to pick up this change. Here's how it looks on my system:
     ````
     PATH_TO_FX=C:\Programming\javafx-sdk-12.0.1\lib
     ````
@@ -23,4 +23,6 @@ If you want to launch via your IDE:
    --module-path="C:\path\to\javafx-sdk-12.0.1\lib" --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.web`
    ```
 3. Try running again, it should now work.
+
+Note that if launching via IDE, you will need to update the --add-modules if you ever add a new module. This it is recommended to run via Gradle.
 
