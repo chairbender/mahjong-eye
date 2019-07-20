@@ -27,6 +27,8 @@ javafx {
 	modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.graphics', 'javafx.swing' ]
 }
 
+mainClassName = 'com.chairbender.mahjongeye.MahjongeyeApplication'
+
 
 repositories {
 	mavenCentral()
