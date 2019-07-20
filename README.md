@@ -4,7 +4,10 @@ Using computer vision to enhance the game of mahjong.
 # Setup
 1. Install Java 12 or higher SDK.
 1. Install JavaFX SDK 12 or higher: https://gluonhq.com/products/javafx/. 
-1. Set the PATH_TO_FX environment variable to point to the place you installed the JavaFX SDK (you may need to restart your system to pick up this change). You can also do this via your IDE.
+1. Set the PATH_TO_FX environment variable to point to the javafx/lib folder (you may need to restart your system to pick up this change). You can also do this via your IDE. For example, on my system it is:
+    ````
+    PATH_TO_FX=C:\Programming\javafx-sdk-12.0.1\lib
+    ````
 3. Download latest OpenCV for your system and extract it: https://opencv.org/releases/
 4. From the extracted opencv folder, put the correct JAR and dll into this project's folder. For example, on Windows 64 bit and opencv 4.1, you should copy the jar and dll from build/java/x64/ into mahjong-eye/.
 4. If you are using a version of OpenCV newer than 4.1, modify the reference to the opencv-410.jar to point to the newer JAR you just copied.
