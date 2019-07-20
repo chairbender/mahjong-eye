@@ -5,11 +5,9 @@ import com.github.sarxos.webcam.WebcamResolution;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Dragboard;
@@ -22,20 +20,16 @@ import org.springframework.stereotype.Controller;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Controller
 public class MainController {
@@ -51,9 +45,7 @@ public class MainController {
     private Mat droppedImage;
 
     @FXML
-    private TextField blockSize;
-    @FXML
-    private TextField thresholdC;
+    private TextField meldThreshold;
     @FXML
     private TextField minContourArea;
     @FXML
@@ -61,6 +53,9 @@ public class MainController {
 
     @FXML
     private BorderPane borderPane;
+
+    //holds the contours calculated in the current snapshot
+    private List<MatOfPoint> savedContours;
 
     private List<MatProcessor> preprocessors;
 
@@ -73,11 +68,6 @@ public class MainController {
     private void initialize() {
         initializeWebcamDropdown();
         initializeProcessors();
-        blockSize.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
-        thresholdC.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
-        minContourArea.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
-        maxContourArea.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
-        contourApproxEpsilon.textProperty().addListener((obs, old, newVal) -> resetFeed(webcamSelection.getValue(), webcamSelection.getValue()));
 
         borderPane.setOnDragOver(e -> {
             final Dragboard db = e.getDragboard();
@@ -134,6 +124,7 @@ public class MainController {
         preprocessors.add(new MatProcessor("grayscale", this::grayscale));
         preprocessors.add(new MatProcessor("threshold", this::threshold));
         preprocessors.add(new MatProcessor("contour", this::contour));
+        preprocessors.add(new MatProcessor("meld", this::meld));
 
         preprocessorSelection.setItems(FXCollections.observableArrayList(preprocessors));
         preprocessorSelection.getSelectionModel().selectedItemProperty().addListener(
@@ -171,7 +162,7 @@ public class MainController {
         //filter out contours by area
         int min = Integer.parseInt(minContourArea.getText());
         int max = Integer.parseInt(maxContourArea.getText());
-        List<MatOfPoint> filteredContours = contours.stream()
+        savedContours = contours.stream()
                 //min / max area
                 .filter(cont -> {
                     var area = Imgproc.contourArea(cont);
@@ -193,14 +184,77 @@ public class MainController {
                 .filter(cont -> !cont.empty())
                 .collect(Collectors.toList());
 
-
-        Mat color = new Mat();
-        Imgproc.cvtColor(src, color, Imgproc.COLOR_GRAY2BGR);
-        // if any contour exist...
-        for (int i = 0; i < filteredContours.size(); i++) {
-            Imgproc.drawContours(color, filteredContours, i, new Scalar(0, 0, 255), 3);
+        //only draw the contours if we are selected
+        if ("contour".equals(preprocessorSelection.getSelectionModel().getSelectedItem().name)) {
+            Mat color = new Mat();
+            Imgproc.cvtColor(src, color, Imgproc.COLOR_GRAY2BGR);
+            // if any contour exist...
+            for (int i = 0; i < savedContours.size(); i++) {
+                Imgproc.drawContours(color, savedContours, i, new Scalar(0, 0, 255), 3);
+            }
+            return color;
+        } else {
+            //dont draw the contours, just keep them saved.
+            return src;
         }
-        return color;
+    }
+
+    private Mat meld(Mat src) {
+        //this needs to run after contour so that the contours are already calculated
+        if (savedContours == null) {
+            return src;
+        }
+
+        //create bounding boxes for each contour, with an ID for each rect
+        Map<Integer, Box> idToBox =
+                IntStream.range(0, savedContours.size()).boxed()
+                .collect(Collectors.toMap(Function.identity(), i -> Box.boundingContour(savedContours.get(i))));
+
+        //this map will hold the sets that each rect is a part of.
+        //Map from rect ID to the set of rect IDs that are part of that rect's set
+        Map<Integer, Set<Integer>> idToMeld =
+            IntStream.range(0, savedContours.size()).boxed()
+            //each set starts with the box as the only member
+            .collect(Collectors.toMap(Function.identity(), i -> new HashSet<>(Collections.singleton(i))));
+
+        double threshold = Double.parseDouble(meldThreshold.getText());
+
+        for (var box1Entry : idToBox.entrySet()) {
+            for (var box2Entry : idToBox.entrySet()) {
+                var box1 = box1Entry.getValue();
+                var id1 = box1Entry.getKey();
+                var set1 = idToMeld.get(id1);
+                var box2 = box2Entry.getValue();
+                var id2 = box2Entry.getKey();
+
+                //skip if already in a set together
+                if (set1.contains(id2)) continue;
+
+                double distance = box1.shortestDistance(box2);
+                if (distance < threshold) {
+                    //add to set
+                    set1.add(id2);
+                    //update all other sets of all members of the set, overwriting the set
+                    //with this box1's set.
+                    set1.forEach(id -> idToMeld.put(id, set1));
+                }
+            }
+        }
+
+        //get all the unique sets that were created
+        Collection<Collection<Box>> uniqueSets =
+                idToMeld.values().stream().distinct()
+                .map(idset -> idset.stream().map(idToBox::get).collect(Collectors.toList()))
+                .collect(Collectors.toList());
+
+        //create the boxes enclosing each set
+        Collection<Box> melds =
+                uniqueSets.stream().map(Box::meld).collect(Collectors.toList());
+
+        //draw the melds
+        melds.forEach(box -> Imgproc.rectangle(src, box.rect, new Scalar(0, 0, 255), 3));
+
+        return src;
     }
 
     public static MatOfPoint convertIndexesToPoints(MatOfPoint contour, MatOfInt indexes) {
