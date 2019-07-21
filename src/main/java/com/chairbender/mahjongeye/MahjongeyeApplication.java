@@ -11,6 +11,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
+
+
 @SpringBootApplication
 public class MahjongeyeApplication extends Application {
 	private ConfigurableApplicationContext springContext;
@@ -48,6 +50,7 @@ public class MahjongeyeApplication extends Application {
 	 */
 	@Override
 	public void start(Stage primaryStage) throws Exception {
+		MainController.loadSettings();
 		fxmlLoader.setLocation(getClass().getResource("/fxml/main.fxml"));
 		rootNode = fxmlLoader.load();
 

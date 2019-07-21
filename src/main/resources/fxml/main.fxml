@@ -1,50 +1,38 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.control.ComboBox?>
-
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Slider?>
-<?import javafx.scene.control.TextField?>
-<BorderPane xmlns:fx="http://javafx.com/fxml" xmlns="http://javafx.com/javafx/10.0.1" fx:controller="com.chairbender.mahjongeye.MainController" fx:id="borderPane">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><?import javafx.geometry.Insets?><?import javafx.scene.control.Button?><?import javafx.scene.image.ImageView?><?import javafx.scene.layout.BorderPane?><?import javafx.scene.layout.HBox?><?import javafx.scene.control.ComboBox?><?import javafx.scene.layout.VBox?><?import javafx.scene.control.Label?><?import javafx.scene.control.Slider?><?import javafx.scene.control.TextField?><BorderPane xmlns="http://javafx.com/javafx/10.0.1" xmlns:fx="http://javafx.com/fxml" fx:controller="com.chairbender.mahjongeye.MainController" fx:id="borderPane">
     <bottom>
         <HBox alignment="center">
             <padding>
-                <Insets bottom="25" left="25" right="25" top="25" />
+                <Insets bottom="25" left="25" right="25" top="25"/>
             </padding>
-            <ComboBox fx:id="webcamSelection" />
+            <ComboBox fx:id="webcamSelection"/>
         </HBox>
     </bottom>
     <left>
         <HBox alignment="center">
             <padding>
-                <Insets bottom="25" left="25" right="25" top="25" />
+                <Insets bottom="25" left="25" right="25" top="25"/>
             </padding>
-            <ComboBox fx:id="preprocessorSelection" />
-            <Button text="Snap" onAction="#onSnap" />
+            <ComboBox fx:id="preprocessorSelection"/>
+            <Button onAction="#onSnap" text="Snap"/>
         </HBox>
     </left>
     <center>
-        <ImageView fx:id="currentFrame" preserveRatio="true" fitWidth="800"/>
+        <ImageView fitWidth="800" fx:id="currentFrame" preserveRatio="true"/>
     </center>
     <right>
         <VBox alignment="CENTER" spacing="10">
             <padding>
-                <Insets right="10" left="10" />
+                <Insets left="10" right="10"/>
             </padding>
-            <Label text="Minimum Contour Area" />
+            <Label text="Minimum Contour Area"/>
             <TextField fx:id="minContourArea">1000</TextField>
-            <Label text="Max Contour Area" />
+            <Label text="Max Contour Area"/>
             <TextField fx:id="maxContourArea">500000</TextField>
-            <Label text="Contour Approx Epsilon" />
+            <Label text="Contour Approx Epsilon"/>
             <TextField fx:id="contourApproxEpsilon">10</TextField>
-            <Label text="Meld Threshold" />
-            <TextField fx:id="meldThreshold">12</TextField>
+            <Label text="Meld Threshold"/>
+            <TextField fx:id="meldThreshold">1000</TextField>
+            <Button onAction="#onSave" text="Save"/>
         </VBox>
     </right>
 

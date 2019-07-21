@@ -1,5 +1,24 @@
 package com.chairbender.mahjongeye;
 
+import java.io.*;
+
+import java.io.IOException;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import com.sun.javafx.iio.ios.IosDescriptor;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamResolution;
 import javafx.application.Platform;
@@ -30,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
 
 @Controller
 public class MainController {
@@ -63,6 +83,8 @@ public class MainController {
     private ScheduledFuture<Runnable> currentFrameGrabber;
 
     private boolean stream = false;
+
+    public String path = System.getProperty("user.dir");
 
     @FXML
     private void initialize() {
@@ -135,12 +157,12 @@ public class MainController {
     }
 
     //TODO: Maybe blur?
+
     private Mat blur(Mat src) {
         var dst = new Mat();
         Imgproc.blur(src, dst, new Size(7, 7));
         return dst;
     }
-
     private Mat grayscale(Mat src) {
         var dst = new Mat();
         Imgproc.cvtColor(src, dst, Imgproc.COLOR_BGR2GRAY);
@@ -217,6 +239,7 @@ public class MainController {
 
         return src;
     }
+
 
     public static MatOfPoint convertIndexesToPoints(MatOfPoint contour, MatOfInt indexes) {
         int[] arrIndex = indexes.toArray();
@@ -305,6 +328,95 @@ public class MainController {
                 return;
             }
             updateImage(mat);
+        }
+    }
+
+    //Triggers on Save button in rightmost region in UI
+    public void onSave() throws IOException{
+        String settingsDirectory = path + "\\Settings";
+        File settings = new File(settingsDirectory);
+        if (settings.createNewFile()) {
+            //Produces new settings file if one not found with along with warning message
+            System.out.println("Warning: Settings File was not found so a new one was created");
+            updateSettings(settingsDirectory);
+        } else {
+            updateSettings(settingsDirectory);
+        }
+    }
+
+    //Updates the setting file with the current TextField Information in rightmost region in UI
+    public void updateSettings (String settingsDirectory) throws IOException{
+        String line1 = "minContourArea=" + minContourArea.getText() + "\n";
+        String line2 = "maxContourArea=" + maxContourArea.getText() + "\n";
+        String line3 = "contourApproxEpsilon=" + contourApproxEpsilon.getText() + "\n";
+        String line4 = "meldThreshold=" + meldThreshold.getText() + "\n";
+        String data = line1 + line2 + line3 + line4;
+        //Writes to the Settings File
+        FileWriter writer = new FileWriter(settingsDirectory);
+        writer.write(data);
+        writer.close();
+    }
+
+    //Reads a specific line in the Settings File and then outputs the data at the line
+
+    public static String readSettings (int lineNumber) {
+        String line;
+        try (BufferedReader br = new BufferedReader(new FileReader("Settings"))) {
+            for (int i = 0; i < lineNumber; i++)
+                br.readLine();
+            line = br.readLine();
+            return line.replaceAll("[^0-9]", "");
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            return "";
+        }
+    }
+
+    //Is run at startup of App and edits main.fxml according to the data in settings in order to change the default values of TextFields
+    public static void loadSettings () {
+        String path = System.getProperty("user.dir");
+        String mainPath = path + "\\src\\main\\resources\\fxml\\main.fxml";
+        try { //Creates DocumentBuilderFactory Instance for the xml file (fxml)
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+            Document main = docBuilder.parse(mainPath);
+            Node VBox = main.getElementsByTagName("VBox").item(0);
+            NodeList list = VBox.getChildNodes();
+            for (int i = 0; i < list.getLength(); i++) {
+
+                Node node = list.item(i);
+                //Searches for the right node with right Attribute and then changes the TextContent in the Node from the Settings File
+                if ("TextField".equals(node.getNodeName())) {
+                    var attr = node.getAttributes().getNamedItem("fx:id");
+                    if ("minContourArea".equals(attr.getNodeValue())) {
+                        node.setTextContent(readSettings(0));
+                    } else if ("maxContourArea".equals(attr.getNodeValue())) {
+                        node.setTextContent(readSettings(1));
+                    } else if ("contourApproxEpsilon".equals(attr.getNodeValue())) {
+                        node.setTextContent(readSettings(2));
+                    } else if ("meldThreshold".equals(attr.getNodeValue())) {
+                        node.setTextContent(readSettings(3));
+                    }
+                }
+            }
+            //Properly closes the Instance (Might be wrong...)
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+            DOMSource source = new DOMSource(main);
+            StreamResult result = new StreamResult(new File(mainPath));
+            transformer.transform(source, result);
+        } catch (ParserConfigurationException pce) {
+            pce.printStackTrace();
+            System.out.println("Parser");
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            System.out.println("IOException");
+        } catch (SAXException sae) {
+            sae.printStackTrace();
+            System.out.println("SAX");
+        } catch (TransformerException tfe) {
+            tfe.printStackTrace();
+            System.out.println("Transformer");
         }
     }
 
