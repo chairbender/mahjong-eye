@@ -1,5 +1,24 @@
 package com.chairbender.mahjongeye;
 
+import java.io.*;
+
+import java.io.IOException;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import com.sun.javafx.iio.ios.IosDescriptor;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamResolution;
 import javafx.application.Platform;
@@ -29,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
 
 @Controller
 public class MainController {
@@ -71,8 +91,11 @@ public class MainController {
 
     private boolean stream = false;
 
+    public String path = System.getProperty("user.dir");
+
     @FXML
     private void initialize() {
+        loadProperties();
         initializeWebcamDropdown();
         initializeProcessors();
 
@@ -338,6 +361,50 @@ public class MainController {
                 return;
             }
             updateImage(mat);
+        }
+    }
+
+    //Triggers on Save button in rightmost region in UI
+    public void onSave() throws IOException{
+        String propDirectory = path + "\\src\\main\\resources\\config.properties";
+        File prop = new File(propDirectory);
+        if (prop.createNewFile()) {
+            //Produces new properties file if one not found with along with warning message
+            System.out.println("Warning: config.properties was not found so a new one was created");
+            updateProperties(propDirectory);
+        } else {
+            updateProperties(propDirectory);
+        }
+    }
+
+    //Updates the setting file with the current TextField Information in rightmost region in UI
+    public void updateProperties (String propDirectory) throws IOException {
+
+        try (OutputStream output = new FileOutputStream(propDirectory)) {
+            Properties prop = new Properties();
+            prop.setProperty("minContourArea", minContourArea.getText());
+            prop.setProperty("maxContourArea", maxContourArea.getText());
+            prop.setProperty("contourApproxEpsilon", contourApproxEpsilon.getText());
+            prop.setProperty("meldThreshold", meldThreshold.getText());
+            prop.store(output, null);
+        }
+    }
+
+
+    public void loadProperties () {
+        String path = System.getProperty("user.dir");
+        String propDirectory = path + "\\src\\main\\resources\\config.properties";
+        try (InputStream input = new FileInputStream(propDirectory)) {
+            Properties prop = new Properties();
+            prop.load(input);
+
+            minContourArea.setText(prop.getProperty("minContourArea"));
+            maxContourArea.setText(prop.getProperty("maxContourArea"));
+            contourApproxEpsilon.setText(prop.getProperty("contourApproxEpsilon"));
+            meldThreshold.setText(prop.getProperty("meldThreshold"));
+
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
         }
     }
 
