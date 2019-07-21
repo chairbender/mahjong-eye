@@ -14,8 +14,8 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import org.opencv.core.*;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
 import java.awt.image.BufferedImage;
@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 @Controller
 public class MainController {
@@ -44,6 +43,9 @@ public class MainController {
 
     private Mat droppedImage;
 
+    //holds the image prior to preprocessing
+    private Mat rawImage;
+
     @FXML
     private TextField meldThreshold;
     @FXML
@@ -54,8 +56,13 @@ public class MainController {
     @FXML
     private BorderPane borderPane;
 
+    @Autowired
+    private Identifier identifier;
+
     //holds the contours calculated in the current snapshot
     private List<MatOfPoint> savedContours;
+    //holds the saved calculated melds
+    private MeldResult savedMelds;
 
     private List<MatProcessor> preprocessors;
 
@@ -96,7 +103,7 @@ public class MainController {
                     @Override
                     public void run() {
                         System.out.println(file.getAbsolutePath());
-                        droppedImage = Imgcodecs.imread(file.getAbsolutePath());
+                        droppedImage = Utils.scaledImread(file.getAbsolutePath());
                         updateImage(droppedImage);
                     }
                 });
@@ -125,6 +132,7 @@ public class MainController {
         preprocessors.add(new MatProcessor("threshold", this::threshold));
         preprocessors.add(new MatProcessor("contour", this::contour));
         preprocessors.add(new MatProcessor("meld", this::meld));
+        preprocessors.add(new MatProcessor("identify", this::identify));
 
         preprocessorSelection.setItems(FXCollections.observableArrayList(preprocessors));
         preprocessorSelection.getSelectionModel().selectedItemProperty().addListener(
@@ -132,13 +140,6 @@ public class MainController {
 
         //default to first item
         preprocessorSelection.getSelectionModel().select(0);
-    }
-
-    //TODO: Maybe blur?
-    private Mat blur(Mat src) {
-        var dst = new Mat();
-        Imgproc.blur(src, dst, new Size(7, 7));
-        return dst;
     }
 
     private Mat grayscale(Mat src) {
@@ -151,7 +152,7 @@ public class MainController {
         var dst = new Mat();
         //Imgproc.adaptiveThreshold(src, dst, 255.0, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY_INV,
         //        Integer.parseInt(blockSize.getText()), Integer.parseInt(thresholdC.getText()));
-        Imgproc.threshold(src, dst, 0, 255, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU);
+        Imgproc.threshold(src, dst, 0, 255, Imgproc.THRESH_BINARY_INV + Imgproc.THRESH_OTSU);
         return dst;
     }
 
@@ -208,14 +209,45 @@ public class MainController {
         //convert contours into boxes
         List<Box> boxes = savedContours.stream().map(Box::boundingContour).collect(Collectors.toList());
         double threshold = Double.parseDouble(meldThreshold.getText());
-        var meldResult = Box.meldAdjacent(boxes, threshold);
+        savedMelds = Box.meldAdjacent(boxes, threshold);
 
         //TODO: Repeat melding until no more melds are made (until meldResult.didMeld = false)
 
-        //draw the melds
-        meldResult.melds.forEach(box -> Imgproc.rectangle(src, box.rect, new Scalar(0, 0, 255), 3));
+        //draw the melds if this is selected
+        Mat drawMat = src.clone();
+        if ("meld".equals(preprocessorSelection.getSelectionModel().getSelectedItem().name)) {
+            savedMelds.melds.forEach(box -> Imgproc.rectangle(drawMat, box.rect, new Scalar(255, 255, 255), 3));
 
-        return src;
+        }
+
+        return drawMat;
+    }
+
+    private Mat identify(Mat src) {
+        //cant do anything if we haven't calculated melds - this needs to run after meld
+        if (savedMelds == null) {
+            return src;
+        }
+
+        //create matboxes from the source image
+        var matBoxes = savedMelds.melds.stream()
+                //TODO: Configurable padding
+                .map(box -> MatBox.fromImage(box, rawImage, 5))
+                .collect(Collectors.toList());
+
+        Map<MatBox, String> identifications = identifier.identify(matBoxes);
+        Mat textMat = rawImage.clone();
+        for (var idEntry : identifications.entrySet()) {
+            //skip unknown
+            if (idEntry.getValue().equals("?")) {
+                continue;
+            }
+            Imgproc.putText(textMat, idEntry.getValue(),
+                    new Point(idEntry.getKey().startX, idEntry.getKey().startY + idEntry.getKey().rect.height / 2),
+                    0, 2, new Scalar(0, 0, 255), 3);
+        }
+
+        return textMat;
     }
 
     public static MatOfPoint convertIndexesToPoints(MatOfPoint contour, MatOfInt indexes) {
@@ -269,6 +301,7 @@ public class MainController {
     }
 
     private void updateImage(Mat newImage) {
+        rawImage = newImage;
         for (var processor : preprocessors) {
             newImage = processor.preprocess.apply(newImage);
             if (preprocessorSelection.getValue().equals(processor)) {
@@ -299,7 +332,7 @@ public class MainController {
             BufferedImage img = webcamSelection.getValue().webcam.getImage();
             Mat mat = null;
             try {
-                mat = Utils.bufferedImage2Mat(img);
+                mat = Utils.bufferedImage2StandardizedMat(img);
             } catch (IOException e) {
                 e.printStackTrace();
                 return;

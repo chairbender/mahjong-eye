@@ -38,9 +38,9 @@
                 <Insets right="10" left="10" />
             </padding>
             <Label text="Minimum Contour Area" />
-            <TextField fx:id="minContourArea">1000</TextField>
+            <TextField fx:id="minContourArea">10</TextField>
             <Label text="Max Contour Area" />
-            <TextField fx:id="maxContourArea">500000</TextField>
+            <TextField fx:id="maxContourArea">3000</TextField>
             <Label text="Contour Approx Epsilon" />
             <TextField fx:id="contourApproxEpsilon">10</TextField>
             <Label text="Meld Threshold" />

@@ -1,1 +1,4 @@
-my.url: http://www.google.com
+# Config specific to this app
+mahjong-eye:
+  # Dir containing the standard images (relative to working dir, or absolute path)
+  standard-dir: standard

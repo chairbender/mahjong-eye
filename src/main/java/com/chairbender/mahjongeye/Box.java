@@ -1,7 +1,6 @@
 package com.chairbender.mahjongeye;
 
 import com.google.common.collect.Range;
-import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
@@ -52,24 +51,24 @@ public class Box {
     /**
      * bottom left
      */
-    public final Point bl;
+    public final Point tl;
     /**
      * bottom right
      */
-    public final Point br;
+    public final Point tr;
     /**
      * top left
      */
-    public final Point tl;
+    public final Point bl;
     /**
      * top right
      */
-    public final Point tr;
+    public final Point br;
 
     public final Collection<Point> corners;
 
 
-    public Box(Rect rect) {
+    protected Box(Rect rect) {
         this.rect = rect;
         this.startX = rect.x;
         this.startY = rect.y;
@@ -77,11 +76,11 @@ public class Box {
         this.endY = rect.y + rect.height;
         this.xRange = Range.closed(startX, endX);
         this.yRange = Range.closed(startY, endY);
-        this.bl  = new Point(startX, startY);
-        this.br  = new Point(endX, startY);
-        this.tl  = new Point(startX, endY);
-        this.tr  = new Point(endX, endY);
-        corners = Arrays.asList(bl, br, tl, tr);
+        this.tl = new Point(startX, startY);
+        this.tr = new Point(endX, startY);
+        this.bl = new Point(startX, endY);
+        this.br = new Point(endX, endY);
+        corners = Arrays.asList(tl, tr, bl, br);
     }
 
     /**
@@ -182,19 +181,19 @@ public class Box {
             //this is to the right of other
             if (startY > other.endY) {
                 //this is above and to the right of other
-                return euclid(bl, other.tr);
+                return euclid(tl, other.br);
             } else {
                 //this is below and to the right of other
-                return euclid(tl, other.br);
+                return euclid(bl, other.tr);
             }
         } else {
             //this is to the left of other
             if (startY > other.endY) {
                 //this is above and to the left of other
-                return euclid(br, other.tl);
+                return euclid(tr, other.bl);
             } else {
                 //this is below and to the left of other
-                return euclid(tr, other.bl);
+                return euclid(br, other.tl);
             }
         }
     }
@@ -251,5 +250,9 @@ public class Box {
         int endY = toMeld.stream().map(b -> b.endY).max(Comparator.naturalOrder()).orElseThrow();
 
         return new Box(new Rect(startX, startY, endX - startX, endY - startY));
+    }
+
+    public Point center() {
+        return new Point(startX + rect.width / 2.0, startY + rect.height / 2.0);
     }
 }
