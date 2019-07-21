@@ -50,7 +50,6 @@ public class MahjongeyeApplication extends Application {
 	 */
 	@Override
 	public void start(Stage primaryStage) throws Exception {
-		MainController.loadSettings();
 		fxmlLoader.setLocation(getClass().getResource("/fxml/main.fxml"));
 		rootNode = fxmlLoader.load();
 
