@@ -7,10 +7,10 @@ import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.imgproc.Imgproc;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Similar to Rect, but easier to work with (openCV Rect is a really
@@ -90,6 +90,65 @@ public class Box {
      */
     public static Box boundingContour(Mat contour) {
         return new Box(Imgproc.boundingRect(contour));
+    }
+
+    /**
+     * Melds boxes in the collection which are within the threshold distance of each other.
+     * If 2 boxes are adjacent to each other, they will be didMeld together. If any other boxes
+     * are adjacent to those boxes, they will be didMeld into the set as well.
+     *
+     * Note that this only does one pass through the boxes. It may be possible that some of the final melds
+     * are close to each other but are not melded.
+     *
+     * @param boxes boxes to meld
+     * @param threshold threshold distance
+     */
+    public static MeldResult meldAdjacent(List<Box> boxes, double threshold) {
+        //create bounding boxes for each contour, with an ID for each rect
+        Map<Integer, Box> idToBox =
+                IntStream.range(0, boxes.size()).boxed()
+                        .collect(Collectors.toMap(Function.identity(), i -> boxes.get(i)));
+
+        //this map will hold the sets that each rect is a part of.
+        //Map from rect ID to the set of rect IDs that are part of that rect's set
+        Map<Integer, Set<Integer>> idToMeld =
+                IntStream.range(0, boxes.size()).boxed()
+                        //each set starts with the box as the only member
+                        .collect(Collectors.toMap(Function.identity(), i -> new HashSet<>(Collections.singleton(i))));
+
+        var melded = false;
+        for (var box1Entry : idToBox.entrySet()) {
+            for (var box2Entry : idToBox.entrySet()) {
+                var box1 = box1Entry.getValue();
+                var id1 = box1Entry.getKey();
+                var set1 = idToMeld.get(id1);
+                var box2 = box2Entry.getValue();
+                var id2 = box2Entry.getKey();
+
+                //skip if already in a set together
+                if (set1.contains(id2)) continue;
+
+                double distance = box1.shortestDistance(box2);
+                if (distance < threshold) {
+                    melded = true;
+                    //add to set
+                    set1.add(id2);
+                    //update all other sets of all members of the set, overwriting the set
+                    //with this box1's set.
+                    set1.forEach(id -> idToMeld.put(id, set1));
+                }
+            }
+        }
+
+        //get all the unique sets that were created
+        Collection<Collection<Box>> uniqueSets =
+                idToMeld.values().stream().distinct()
+                        .map(idset -> idset.stream().map(idToBox::get).collect(Collectors.toList()))
+                        .collect(Collectors.toList());
+
+        //create the boxes enclosing each set
+        var finalMelds = uniqueSets.stream().map(Box::meld).collect(Collectors.toList());
+        return new MeldResult(finalMelds, melded);
     }
 
     /**

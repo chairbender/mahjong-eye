@@ -205,54 +205,15 @@ public class MainController {
             return src;
         }
 
-        //create bounding boxes for each contour, with an ID for each rect
-        Map<Integer, Box> idToBox =
-                IntStream.range(0, savedContours.size()).boxed()
-                .collect(Collectors.toMap(Function.identity(), i -> Box.boundingContour(savedContours.get(i))));
-
-        //this map will hold the sets that each rect is a part of.
-        //Map from rect ID to the set of rect IDs that are part of that rect's set
-        Map<Integer, Set<Integer>> idToMeld =
-            IntStream.range(0, savedContours.size()).boxed()
-            //each set starts with the box as the only member
-            .collect(Collectors.toMap(Function.identity(), i -> new HashSet<>(Collections.singleton(i))));
-
+        //convert contours into boxes
+        List<Box> boxes = savedContours.stream().map(Box::boundingContour).collect(Collectors.toList());
         double threshold = Double.parseDouble(meldThreshold.getText());
+        var meldResult = Box.meldAdjacent(boxes, threshold);
 
-        for (var box1Entry : idToBox.entrySet()) {
-            for (var box2Entry : idToBox.entrySet()) {
-                var box1 = box1Entry.getValue();
-                var id1 = box1Entry.getKey();
-                var set1 = idToMeld.get(id1);
-                var box2 = box2Entry.getValue();
-                var id2 = box2Entry.getKey();
-
-                //skip if already in a set together
-                if (set1.contains(id2)) continue;
-
-                double distance = box1.shortestDistance(box2);
-                if (distance < threshold) {
-                    //add to set
-                    set1.add(id2);
-                    //update all other sets of all members of the set, overwriting the set
-                    //with this box1's set.
-                    set1.forEach(id -> idToMeld.put(id, set1));
-                }
-            }
-        }
-
-        //get all the unique sets that were created
-        Collection<Collection<Box>> uniqueSets =
-                idToMeld.values().stream().distinct()
-                .map(idset -> idset.stream().map(idToBox::get).collect(Collectors.toList()))
-                .collect(Collectors.toList());
-
-        //create the boxes enclosing each set
-        Collection<Box> melds =
-                uniqueSets.stream().map(Box::meld).collect(Collectors.toList());
+        //TODO: Repeat melding until no more melds are made (until meldResult.didMeld = false)
 
         //draw the melds
-        melds.forEach(box -> Imgproc.rectangle(src, box.rect, new Scalar(0, 0, 255), 3));
+        meldResult.melds.forEach(box -> Imgproc.rectangle(src, box.rect, new Scalar(0, 0, 255), 3));
 
         return src;
     }
