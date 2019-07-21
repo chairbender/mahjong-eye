@@ -31,7 +31,7 @@
             <Label text="Contour Approx Epsilon" />
             <TextField fx:id="contourApproxEpsilon">10</TextField>
             <Label text="Meld Threshold"/>
-            <TextField fx:id="meldThreshold">1000</TextField>
+            <TextField fx:id="meldThreshold">12</TextField>
             <Button onAction="#onSave" text="Save"/>
         </VBox>
     </right>
