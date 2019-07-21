@@ -2,10 +2,7 @@ package com.chairbender.mahjongeye;
 
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.*;
-import org.opencv.features2d.DescriptorMatcher;
-import org.opencv.features2d.FlannBasedMatcher;
-import org.opencv.features2d.KAZE;
-import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.features2d.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -28,7 +25,7 @@ public class Identifier {
 
     //figuring this out from: https://github.com/opencv/opencv/blob/b39cd06249213220e802bb64260727711d9fc98c/modules/flann/include/opencv2/flann/params.h
     //and https://github.com/opencv/opencv/blob/5fb0f34e8ab9002b1e222fb5ab87f91db8ad7bcf/modules/flann/include/opencv2/flann/miniflann.hpp
-    private static final String flannYML = "%YAML:1.0\n" +
+    private static final String flannKDTreeYML = "%YAML:1.0\n" +
             "---\n" +
             "format: 3\n" +
             "indexParams:\n" +
@@ -54,6 +51,41 @@ public class Identifier {
             "    type: 8\n" +
             "    value: 1";
 
+    //https://github.com/opencv/opencv/blob/b39cd06249213220e802bb64260727711d9fc98c/modules/flann/include/opencv2/flann/lsh_index.h
+    private static final String flannLSHYML = "%YAML:1.0\n" +
+            "---\n" +
+            "format: 3\n" +
+            "indexParams:\n" +
+            "  -\n" +
+            "    name: algorithm\n" +
+            "    type: 9\n" +
+            "    value: 6\n" +
+            "  -\n" +
+            "    name: table_number\n" +
+            "    type: 4\n" +
+            "    value: 12\n" +
+            "  -\n" +
+            "    name: key_size\n" +
+            "    type: 4\n" +
+            "    value: 20\n" +
+            "  -\n" +
+            "    name: multi_probe_level\n" +
+            "    type: 4\n" +
+            "    value: 2\n" +
+            "searchParams:\n" +
+            "  -\n" +
+            "    name: checks\n" +
+            "    type: 4\n" +
+            "    value: 50\n" +
+            "  -\n" +
+            "    name: eps\n" +
+            "    type: 5\n" +
+            "    value: 0.\n" +
+            "  -\n" +
+            "    name: sorted\n" +
+            "    type: 8\n" +
+            "    value: 1";
+
     @Autowired
     private MahjongEyeConfig config;
     private static final int MIN_MATCH_COUNT = 4;
@@ -61,7 +93,7 @@ public class Identifier {
     //map from img file name to the image
     private Map<String, Mat> nameToReferenceImage;
     private DescriptorMatcher flannMatcher;
-    private KAZE kaze;
+    private Feature2D featureExtractor;
 
     @PostConstruct
     private void init() throws IOException {
@@ -81,10 +113,9 @@ public class Identifier {
         flannMatcher = DescriptorMatcher.create(DescriptorMatcher.FLANNBASED);
         //write the config string to a file so it can be read in by flann matcher (lol)
         //TODO: Make this easier
-        Files.writeString(Paths.get("flann.yml"), flannYML);
+        Files.writeString(Paths.get("flann.yml"), flannKDTreeYML);
         flannMatcher.read("flann.yml");
-
-        kaze = KAZE.create();
+        featureExtractor = AKAZE.create();
     }
 
     private String fileNameToTileName(String filename) {
@@ -158,10 +189,10 @@ public class Identifier {
 
         MatOfKeyPoint kpSrc = new MatOfKeyPoint();
         Mat desSrc = new Mat();
-        kaze.detectAndCompute(src, new Mat(), kpSrc, desSrc);
+        featureExtractor.detectAndCompute(src, new Mat(), kpSrc, desSrc);
         MatOfKeyPoint kpRef = new MatOfKeyPoint();
         Mat desRef = new Mat();
-        kaze.detectAndCompute(reference, new Mat(), kpRef, desRef);
+        featureExtractor.detectAndCompute(reference, new Mat(), kpRef, desRef);
 
         //search for matches among the descriptors.
         List<MatOfDMatch> matches = new ArrayList<>();
@@ -171,6 +202,7 @@ public class Identifier {
         List<DMatch> goodMatches = new ArrayList<>();
         for (var matofmatch : matches) {
             var matcharray = matofmatch.toArray();
+            if (matcharray.length < 2) continue;
             var srcmatch = matcharray[0];
             var refmatch = matcharray[1];
 
