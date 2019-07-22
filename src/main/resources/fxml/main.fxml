@@ -43,8 +43,10 @@
         </HBox>
     </left>
     <center>
-        <ImageView fitWidth="300" fx:id="currentFrame" preserveRatio="true"/>
-        <ImageView fitWidth="300" fx:id="meldView" preserveRatio="true"/>
+        <HBox alignment="center" spacing="15">
+            <ImageView fitWidth="400" fx:id="currentFrame" preserveRatio="true"/>
+            <ImageView fitWidth="300" fx:id="meldView" preserveRatio="true"/>
+        </HBox>
     </center>
     <right>
         <VBox alignment="CENTER" spacing="10">

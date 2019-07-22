@@ -276,8 +276,6 @@ public class MainController {
 
         List <MeldMat> meldMats = new ArrayList<>();
 
-        meldMats.add(new MeldMat("None", null));
-
         int i = 0;
         for (MatBox meld: melds) {
             meldMats.add(new MeldMat("Meld" + String.valueOf(i), meld));
@@ -358,7 +356,7 @@ public class MainController {
         ref.set(SwingFXUtils.toFXImage(finalImage, ref.get()));
         finalImage.flush();
 
-        Utils.onFXThread(meldView.imageProperty(), ref.get());
+        Utils.onFXThread(currentFrame.imageProperty(), ref.get());
     }
 
     public void onSnap() {
