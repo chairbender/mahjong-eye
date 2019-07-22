@@ -2,23 +2,6 @@ package com.chairbender.mahjongeye;
 
 import java.io.*;
 
-import java.io.IOException;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import com.sun.javafx.iio.ios.IosDescriptor;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamResolution;
 import javafx.application.Platform;
@@ -61,10 +44,16 @@ public class MainController {
     @FXML
     private ImageView currentFrame;
 
+    @FXML
+    private ImageView meldView;
+
     private Mat droppedImage;
 
     //holds the image prior to preprocessing
     private Mat rawImage;
+
+    @FXML
+    private ComboBox<MeldMat> meldSelection;
 
     @FXML
     private TextField meldThreshold;
@@ -85,6 +74,8 @@ public class MainController {
     private MeldResult savedMelds;
 
     private List<MatProcessor> preprocessors;
+
+    //private List<MeldMat> meldMatsTemp;
 
     private ScheduledExecutorService frameGrabberExecutor = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<Runnable> currentFrameGrabber;
@@ -243,6 +234,8 @@ public class MainController {
 
         }
 
+        initializeSavedMelds(savedMelds, rawImage);
+
         return drawMat;
     }
 
@@ -269,8 +262,28 @@ public class MainController {
                     new Point(idEntry.getKey().startX, idEntry.getKey().startY + idEntry.getKey().rect.height / 2),
                     0, 2, new Scalar(0, 0, 255), 3);
         }
-
         return textMat;
+    }
+
+    private void initializeSavedMelds (MeldResult savedMelds, Mat rawImage) {
+
+        var matBoxes = savedMelds.melds.stream()
+                //TODO: Configurable padding
+                .map(box -> MatBox.fromImage(box, rawImage, 5))
+                .collect(Collectors.toList());
+
+        List <MatBox> melds = matBoxes;
+
+        List <MeldMat> meldMats = new ArrayList<>();
+
+        int i = 0;
+        for (MatBox meld: melds) {
+            meldMats.add(new MeldMat("Meld" + String.valueOf(i), meld));
+            i++;
+        }
+
+        meldSelection.setItems(FXCollections.observableArrayList(meldMats));
+
     }
 
     public static MatOfPoint convertIndexesToPoints(MatOfPoint contour, MatOfInt indexes) {
@@ -364,6 +377,26 @@ public class MainController {
         }
     }
 
+    public void onDisplayMeld() {
+
+        MatBox meld = meldSelection.getSelectionModel().getSelectedItem().meld;
+
+        Mat mat = meld.getMat();
+        BufferedImage finalImage = null;
+        try {
+            finalImage = Utils.mat2BufferedImage(mat);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+        final AtomicReference<WritableImage> ref = new AtomicReference<>();
+        ref.set(SwingFXUtils.toFXImage(finalImage, ref.get()));
+        finalImage.flush();
+
+        Utils.onFXThread(meldView.imageProperty(), ref.get());
+
+    }
+
     //Triggers on Save button in rightmost region in UI
     public void onSave() throws IOException{
         String propDirectory = path + "\\src\\main\\resources\\config.properties";
@@ -437,6 +470,22 @@ public class MainController {
             return name;
         }
     }
+
+    private class MeldMat {
+        public String name;
+        public MatBox meld;
+
+        public MeldMat(String name, MatBox meld) {
+            this.name = name;
+            this.meld = meld;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
 }
 
 

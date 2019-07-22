@@ -1,4 +1,30 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?><?import javafx.geometry.Insets?><?import javafx.scene.control.Button?><?import javafx.scene.image.ImageView?><?import javafx.scene.layout.BorderPane?><?import javafx.scene.layout.HBox?><?import javafx.scene.control.ComboBox?><?import javafx.scene.layout.VBox?><?import javafx.scene.control.Label?><?import javafx.scene.control.Slider?><?import javafx.scene.control.TextField?><BorderPane xmlns="http://javafx.com/javafx/10.0.1" xmlns:fx="http://javafx.com/fxml" fx:controller="com.chairbender.mahjongeye.MainController" fx:id="borderPane">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextField?>
+<?import java.lang.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+<BorderPane xmlns="http://javafx.com/javafx/10.0.1" xmlns:fx="http://javafx.com/fxml" fx:controller="com.chairbender.mahjongeye.MainController" fx:id="borderPane">
+    <top>
+        <HBox alignment="center">
+            <padding>
+                <Insets bottom="25" left="25" right="25"/>
+            </padding>
+            <ComboBox fx:id="meldSelection"/>
+            <Button onAction="#onDisplayMeld" text="DisplayMeld"/>
+        </HBox>
+    </top>
     <bottom>
         <HBox alignment="center">
             <padding>
@@ -17,7 +43,10 @@
         </HBox>
     </left>
     <center>
-        <ImageView fitWidth="800" fx:id="currentFrame" preserveRatio="true"/>
+        <HBox alignment="center" spacing="15">
+            <ImageView fitWidth="400" fx:id="currentFrame" preserveRatio="true"/>
+            <ImageView fitWidth="300" fx:id="meldView" preserveRatio="true"/>
+        </HBox>
     </center>
     <right>
         <VBox alignment="CENTER" spacing="10">
@@ -37,3 +66,4 @@
     </right>
 
 </BorderPane>
+
