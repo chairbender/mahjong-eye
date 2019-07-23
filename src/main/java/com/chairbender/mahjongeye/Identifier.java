@@ -214,6 +214,7 @@ public class Identifier {
 
         //TODO: Make configurable
         if (goodMatches.size() > MIN_MATCH_COUNT) {
+
             //get the keypoints from the good matches so we can do homography
             List<KeyPoint> kplistSrc = kpSrc.toList();
             List<KeyPoint> kplistRef = kpRef.toList();
@@ -235,5 +236,50 @@ public class Identifier {
             //not enough matches
             return 0;
         }
+
     }
+
+    public Mat drawMatches(Mat src, Mat reference) {
+        //based on this
+        //https://docs.opencv.org/3.4/d7/dff/tutorial_feature_homography.html
+
+        MatOfKeyPoint kpSrc = new MatOfKeyPoint();
+        Mat desSrc = new Mat();
+        kaze.detectAndCompute(src, new Mat(), kpSrc, desSrc);
+        MatOfKeyPoint kpRef = new MatOfKeyPoint();
+        Mat desRef = new Mat();
+        kaze.detectAndCompute(reference, new Mat(), kpRef, desRef);
+
+        //search for matches among the descriptors.
+        List<MatOfDMatch> matches = new ArrayList<>();
+        flannMatcher.knnMatch(desSrc, desRef, matches, 2);
+
+        //find good matches using lowe's ratio test
+        List<DMatch> goodMatches = new ArrayList<>();
+        for (var matofmatch : matches) {
+            var matcharray = matofmatch.toArray();
+            if (matcharray.length < 2) continue;
+            var srcmatch = matcharray[0];
+            var refmatch = matcharray[1];
+
+            //TODO: Make configurable
+            if (srcmatch.distance < 0.7 * refmatch.distance) {
+                goodMatches.add(srcmatch);
+            }
+        }
+
+        //TODO: Make configurable
+        if (goodMatches.size() > MIN_MATCH_COUNT) {
+
+            MatOfDMatch matchMat = new MatOfDMatch(goodMatches.toArray(new DMatch[0]));
+            Mat matchImg = new Mat();
+            Features2d.drawMatches(src, kpSrc, reference, kpRef, matchMat, matchImg, Scalar.all(-1), Scalar.all(-1));
+            //get the keypoints from the good matches so we can do homography
+            return matchImg;
+        } else {
+            return null;
+
+        }
+    }
+
 }

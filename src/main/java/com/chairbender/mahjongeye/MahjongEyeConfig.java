@@ -11,4 +11,5 @@ import java.nio.file.Path;
 @ConfigurationProperties(prefix = "mahjong-eye")
 public class MahjongEyeConfig {
     private Path standardDir;
+
 }

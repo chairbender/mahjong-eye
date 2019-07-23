@@ -35,6 +35,10 @@ public final class Utils
     private static final double FX = 0.2;
     private static final double FY = 0.2;
 
+    private static final int FIT_WIDTH = 1024;
+    private static final int FIT_HEIGHT = 768;
+
+
     /**
      * Standardizes - convert to standard size
      * @param src
@@ -47,6 +51,19 @@ public final class Utils
         // It would be better to set a general bound on image size rather than scaling by a constant,
         //that way all images would have a standard size. I think this can be done using the Size parameter
         Mat result = new Mat();
+
+        /*
+        float FX,FY;
+
+        if (src.width() > src.height()) {
+            FX = (float) src.width() / FIT_WIDTH;
+            FY = (float) src.width() / FIT_WIDTH;
+        } else {
+            FX = (float) src.height() / FIT_HEIGHT;
+            FY = (float) src.height() / FIT_HEIGHT;
+        }
+        */
+
         Imgproc.resize(src, result, new Size(0, 0), FX, FY);
         return result;
     }
@@ -55,6 +72,7 @@ public final class Utils
      * @param filename
      * @return
      */
+
     public static Mat scaledImread(String filename) {
         return standardize(Imgcodecs.imread(filename));
     }

@@ -10,6 +10,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Dragboard;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Controller;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,7 +47,7 @@ public class MainController {
     private ImageView currentFrame;
 
     @FXML
-    private ImageView meldView;
+    private ImageView meldReferenceView;
 
     private Mat droppedImage;
 
@@ -54,6 +56,8 @@ public class MainController {
 
     @FXML
     private ComboBox<MeldMat> meldSelection;
+    @FXML
+    private ComboBox<ReferenceImage> referenceSelection;
 
     @FXML
     private TextField meldThreshold;
@@ -65,6 +69,9 @@ public class MainController {
     @FXML
     private BorderPane borderPane;
 
+    @FXML
+    private CheckBox displayMatchesToggle;
+
     @Autowired
     private Identifier identifier;
 
@@ -75,8 +82,6 @@ public class MainController {
 
     private List<MatProcessor> preprocessors;
 
-    //private List<MeldMat> meldMatsTemp;
-
     private ScheduledExecutorService frameGrabberExecutor = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<Runnable> currentFrameGrabber;
 
@@ -84,9 +89,12 @@ public class MainController {
 
     public String path = System.getProperty("user.dir");
 
+    private String standardDir = path + "\\standard";
+
     @FXML
     private void initialize() {
         loadProperties();
+        initializeReferences();
         initializeWebcamDropdown();
         initializeProcessors();
 
@@ -286,6 +294,22 @@ public class MainController {
 
     }
 
+    private  void initializeReferences () {
+
+        File[] files = new File(standardDir).listFiles();
+        List <ReferenceImage> referenceImages = new ArrayList<>();
+
+        for (File file: files) {
+            if (file.isFile()) {
+                if (file.getName().toLowerCase().endsWith(".jpg")) {
+                    Mat mat = Utils.scaledImread(file.getPath());
+                    referenceImages.add(new ReferenceImage(file.getName(), mat));
+                }
+            }
+        }
+        referenceSelection.setItems(FXCollections.observableArrayList(referenceImages));
+    }
+
     public static MatOfPoint convertIndexesToPoints(MatOfPoint contour, MatOfInt indexes) {
         int[] arrIndex = indexes.toArray();
         Point[] arrContour = contour.toArray();
@@ -393,7 +417,53 @@ public class MainController {
         ref.set(SwingFXUtils.toFXImage(finalImage, ref.get()));
         finalImage.flush();
 
-        Utils.onFXThread(meldView.imageProperty(), ref.get());
+        Utils.onFXThread(meldReferenceView.imageProperty(), ref.get());
+
+    }
+
+    public void onDisplayReference() {
+
+        Mat mat = referenceSelection.getSelectionModel().getSelectedItem().mat;
+
+        BufferedImage finalImage = null;
+        try {
+            finalImage = Utils.mat2BufferedImage(mat);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+        final AtomicReference<WritableImage> ref = new AtomicReference<>();
+        ref.set(SwingFXUtils.toFXImage(finalImage, ref.get()));
+        finalImage.flush();
+
+        Utils.onFXThread(meldReferenceView.imageProperty(), ref.get());
+    }
+
+    public void onDisplayMatches() {
+        MatBox meldBox = meldSelection.getSelectionModel().getSelectedItem().meld;
+        Mat meld = meldBox.getMat();
+        Mat reference = referenceSelection.getSelectionModel().getSelectedItem().mat;
+
+        Mat matchImg = identifier.drawMatches(meld, reference);
+
+        if (matchImg == null) {
+            return;
+        }
+
+        BufferedImage finalImage = null;
+
+        try {
+            finalImage = Utils.mat2BufferedImage(matchImg);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+        final AtomicReference<WritableImage> ref = new AtomicReference<>();
+        ref.set(SwingFXUtils.toFXImage(finalImage, ref.get()));
+        finalImage.flush();
+
+        Utils.onFXThread(meldReferenceView.imageProperty(), ref.get());
+
 
     }
 
@@ -486,6 +556,18 @@ public class MainController {
         }
     }
 
+    private class ReferenceImage {
+        public String name;
+        public Mat mat;
+
+        public ReferenceImage(String name, Mat mat) {
+            this.name = name;
+            this.mat = mat;
+        }
+
+        @Override
+        public String toString() { return name; }
+    }
 }
 
 
