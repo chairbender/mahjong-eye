@@ -93,7 +93,7 @@ public class Identifier {
     //map from img file name to the image
     private Map<String, Mat> nameToReferenceImage;
     private DescriptorMatcher flannMatcher;
-    private Feature2D featureExtractor;
+    private KAZE kaze;
 
     @PostConstruct
     private void init() throws IOException {
@@ -115,7 +115,7 @@ public class Identifier {
         //TODO: Make this easier
         Files.writeString(Paths.get("flann.yml"), flannKDTreeYML);
         flannMatcher.read("flann.yml");
-        featureExtractor = AKAZE.create();
+        kaze = KAZE.create();
     }
 
     private String fileNameToTileName(String filename) {
@@ -189,10 +189,10 @@ public class Identifier {
 
         MatOfKeyPoint kpSrc = new MatOfKeyPoint();
         Mat desSrc = new Mat();
-        featureExtractor.detectAndCompute(src, new Mat(), kpSrc, desSrc);
+        kaze.detectAndCompute(src, new Mat(), kpSrc, desSrc);
         MatOfKeyPoint kpRef = new MatOfKeyPoint();
         Mat desRef = new Mat();
-        featureExtractor.detectAndCompute(reference, new Mat(), kpRef, desRef);
+        kaze.detectAndCompute(reference, new Mat(), kpRef, desRef);
 
         //search for matches among the descriptors.
         List<MatOfDMatch> matches = new ArrayList<>();
