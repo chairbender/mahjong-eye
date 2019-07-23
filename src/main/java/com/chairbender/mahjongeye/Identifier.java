@@ -161,11 +161,14 @@ public class Identifier {
     public Map<MatBox, String> identify(List<MatBox> melds) {
 
         var result = new HashMap<MatBox, String>();
+        var i = 0;
         for (MatBox meld : melds) {
+            System.out.println("Checking meld " + i++);
             //compare to all reference images
             long max = 0;
             String bestmatch = "?";
             for (Map.Entry<String, Mat> referenceEntry : nameToReferenceImage.entrySet()) {
+                System.out.println("Comparing to " + referenceEntry.getKey());
                 var inliers = findInliers(meld.getMat(), referenceEntry.getValue());
                 if (inliers > max) {
                     max = inliers;
