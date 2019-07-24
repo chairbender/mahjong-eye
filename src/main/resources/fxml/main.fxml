@@ -28,11 +28,9 @@
                 <Insets bottom="25" left="25" right="25"/>
             </padding>
             <Label text="Meld Select:"/>
-            <ComboBox fx:id="meldSelection"/>
+            <ComboBox fx:id="meldSelection" onAction="#onDisplayMeld"/>
             <Label text="Reference Image Select:"/>
-            <ComboBox fx:id="referenceSelection"/>
-            <Button onAction="#onDisplayMeld" text="DisplayMeld"/>
-            <Button onAction="#onDisplayReference" text="DisplayReference"/>
+            <ComboBox fx:id="referenceSelection" onAction="#onDisplayReference"/>
             <Button onAction="#onDisplayMatches" text="Display Matches"/>
         </HBox>
     </top>
@@ -49,7 +47,7 @@
     <center>
         <HBox alignment="center" spacing="15">
             <ImageView fitWidth="400" fx:id="currentFrame" preserveRatio="true"/>
-            <ImageView fitWidth="300" fx:id="meldReferenceView" preserveRatio="true"/>
+            <ImageView fitWidth="500" fx:id="meldReferenceView" preserveRatio="true"/>
         </HBox>
     </center>
     <right>
