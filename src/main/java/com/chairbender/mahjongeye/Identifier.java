@@ -95,6 +95,10 @@ public class Identifier {
     private DescriptorMatcher flannMatcher;
     private KAZE kaze;
 
+    public HashMap<MatBox,Map<Mat,String>> relevantReferences = new HashMap<>();
+
+    private HashMap<Mat,String> references = new HashMap<>();
+
     @PostConstruct
     private void init() throws IOException {
 
@@ -170,15 +174,26 @@ public class Identifier {
             for (Map.Entry<String, Mat> referenceEntry : nameToReferenceImage.entrySet()) {
                 System.out.println("Comparing to " + referenceEntry.getKey());
                 var inliers = findInliers(meld.getMat(), referenceEntry.getValue());
+                System.out.println("Number of Inliers: " + inliers);
                 if (inliers > max) {
                     max = inliers;
                     bestmatch = referenceEntry.getKey();
                 }
+
+                if (inliers != 0) {
+                    if (bestmatch == referenceEntry.getKey()) {
+                        references.put(referenceEntry.getValue(), referenceEntry.getKey() + "  (BestMatch)");
+                    } else {
+                        references.put(referenceEntry.getValue(), referenceEntry.getKey());
+                    }
+                }
+
             }
-
             result.put(meld, bestmatch);
+            relevantReferences.put(meld, references);
+            references = new HashMap<>();
         }
-
+        System.out.println(result);
         return result;
     }
 

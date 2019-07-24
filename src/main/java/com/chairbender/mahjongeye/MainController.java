@@ -260,6 +260,7 @@ public class MainController {
                 .collect(Collectors.toList());
 
         Map<MatBox, String> identifications = identifier.identify(matBoxes);
+        reinitializeSavedMelds(identifications);
         Mat textMat = rawImage.clone();
         for (var idEntry : identifications.entrySet()) {
             //skip unknown
@@ -272,7 +273,7 @@ public class MainController {
         }
         return textMat;
     }
-
+    //Allows for the selection of melds in a ComboBox
     private void initializeSavedMelds (MeldResult savedMelds, Mat rawImage) {
 
         var matBoxes = savedMelds.melds.stream()
@@ -293,7 +294,18 @@ public class MainController {
         meldSelection.setItems(FXCollections.observableArrayList(meldMats));
 
     }
+    //After Identification has been done, reinitializes the meldSelection to show the identified names of melds
+    private void reinitializeSavedMelds (Map<MatBox, String> identifications) {
 
+        List <MeldMat> meldMats = new ArrayList<>();
+
+        for (Map.Entry<MatBox, String> identification: identifications.entrySet()) {
+            meldMats.add(new MeldMat(identification.getValue(), identification.getKey()));
+        }
+
+        meldSelection.setItems(FXCollections.observableArrayList(meldMats));
+    }
+    //Allows to choose a referenceImage through combobox
     private  void initializeReferences () {
 
         File[] files = new File(standardDir).listFiles();
@@ -306,6 +318,17 @@ public class MainController {
                     referenceImages.add(new ReferenceImage(file.getName(), mat));
                 }
             }
+        }
+        referenceSelection.setItems(FXCollections.observableArrayList(referenceImages));
+    }
+    //Reinitializes referenceImages in order to only show those who have inliers
+    private void reinitializeReferences(MatBox meld) {
+
+        Map<Mat,String> references = identifier.relevantReferences.get(meld);
+        List <ReferenceImage> referenceImages = new ArrayList<>();
+
+        for(Map.Entry<Mat,String> reference: references.entrySet()) {
+            referenceImages.add(new ReferenceImage(reference.getValue(), reference.getKey()));
         }
         referenceSelection.setItems(FXCollections.observableArrayList(referenceImages));
     }
@@ -406,6 +429,9 @@ public class MainController {
         MatBox meld = meldSelection.getSelectionModel().getSelectedItem().meld;
 
         Mat mat = meld.getMat();
+
+        reinitializeReferences(meld);
+
         BufferedImage finalImage = null;
         try {
             finalImage = Utils.mat2BufferedImage(mat);

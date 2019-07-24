@@ -52,7 +52,7 @@ public final class Utils
         //that way all images would have a standard size. I think this can be done using the Size parameter
         Mat result = new Mat();
 
-
+        /*
         float FX,FY;
 
         if (src.width() > src.height()) {
@@ -62,7 +62,7 @@ public final class Utils
             FX = (float) src.height() / FIT_HEIGHT;
             FY = (float) src.height() / FIT_HEIGHT;
         }
-
+        */
 
         Imgproc.resize(src, result, new Size(0, 0), FX, FY);
         return result;
