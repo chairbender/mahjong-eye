@@ -87,8 +87,6 @@ public class Identifier {
             "    type: 8\n" +
             "    value: 1";
 
-    private ExecutorService executorService = Executors.newCachedThreadPool();
-
     @Autowired
     private MahjongEyeConfig config;
     private static final int MIN_MATCH_COUNT = 4;
@@ -109,7 +107,7 @@ public class Identifier {
                         //there's some weird file
                         !p.getFileName().toString().contains("resized"))
                 .collect(Collectors.toMap(p -> fileNameToTileName(p.getFileName().toString()), p ->
-                        Utils.scaledImread(p.toAbsolutePath().toString())));
+                        Utils.scaledImread(p.toAbsolutePath().toString(), true)));
         //initialize matcher
         //TODO: Probably there's a more sophisticated approach for this, such as a NN
         //stupidly, the only way to configure the matcher is to feed it a yml file, lol
@@ -163,11 +161,15 @@ public class Identifier {
      * @return a map from the box to the label detected for that box (based on the jpg file name it has
      * the most inliers with).
      */
-    public Map<MatBox, String> identify(List<MatBox> melds) {
+    public Map<MatBox, String> identify(List<MatBox> melds, int threads) {
+
+        var executorService = Executors.newFixedThreadPool(threads);
 
         relevantReferences = new HashMap<>();
         var result = new HashMap<MatBox, String>();
+        int i = 0;
         for (MatBox meld : melds) {
+            System.out.println("Comparing meld " + i++);
             var futures = new LinkedList<Future<InlierResult>>();
             //create futures to run our inlier method in parallel
             for (Map.Entry<String, Mat> referenceEntry : nameToReferenceImage.entrySet()) {

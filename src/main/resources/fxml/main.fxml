@@ -55,6 +55,8 @@
             <padding>
                 <Insets left="10" right="10"/>
             </padding>
+            <Label text="Threads" />
+            <TextField fx:id="threads">8</TextField>
             <Label text="Minimum Contour Area" />
             <TextField fx:id="minContourArea">10</TextField>
             <Label text="Max Contour Area" />

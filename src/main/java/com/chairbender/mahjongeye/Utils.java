@@ -35,8 +35,10 @@ public final class Utils
     private static final double FX = 0.2;
     private static final double FY = 0.2;
 
-    private static final int FIT_WIDTH = 1024;
-    private static final int FIT_HEIGHT = 768;
+    private static final int SRC_FIT_WIDTH = 1920;
+    private static final int SRC_FIT_HEIGHT = 1080;
+    private static final int REF_FIT_WIDTH = 240;
+    private static final int REF_FIT_HEIGHT = 320;
 
 
     /**
@@ -44,7 +46,7 @@ public final class Utils
      * @param src
      * @return
      */
-    public static Mat standardize(Mat src) {
+    public static Mat standardize(Mat src, boolean isReference) {
         //TODO: Make this configurable
         //TODO: This doesn't actually standardize - it applies a constant scale factor
         // which means that the image size will depend on the src image size.
@@ -52,17 +54,16 @@ public final class Utils
         //that way all images would have a standard size. I think this can be done using the Size parameter
         Mat result = new Mat();
 
-        /*
         float FX,FY;
 
         if (src.width() > src.height()) {
-            FX = (float) src.width() / FIT_WIDTH;
-            FY = (float) src.width() / FIT_WIDTH;
+            FX = (float) (isReference ? REF_FIT_WIDTH : SRC_FIT_WIDTH) / src.width();
+            FY = (float) (isReference ? REF_FIT_WIDTH : SRC_FIT_WIDTH) / src.width();
         } else {
-            FX = (float) src.height() / FIT_HEIGHT;
-            FY = (float) src.height() / FIT_HEIGHT;
+            FX = (float) (isReference ? REF_FIT_HEIGHT : SRC_FIT_HEIGHT) / src.height();
+            FY = (float) (isReference ? REF_FIT_HEIGHT : SRC_FIT_HEIGHT) / src.height();
         }
-        */
+
 
         Imgproc.resize(src, result, new Size(0, 0), FX, FY);
         return result;
@@ -73,8 +74,8 @@ public final class Utils
      * @return
      */
 
-    public static Mat scaledImread(String filename) {
-        return standardize(Imgcodecs.imread(filename));
+    public static Mat scaledImread(String filename, boolean isReference) {
+        return standardize(Imgcodecs.imread(filename), isReference);
     }
 
     /**
@@ -83,11 +84,11 @@ public final class Utils
      * @return
      * @throws IOException
      */
-    public static Mat bufferedImage2StandardizedMat(BufferedImage image) throws IOException {
+    public static Mat bufferedImage2StandardizedMat(BufferedImage image, boolean isReferecne) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ImageIO.write(image, "jpg", byteArrayOutputStream);
         byteArrayOutputStream.flush();
-        return standardize(Imgcodecs.imdecode(new MatOfByte(byteArrayOutputStream.toByteArray()), Imgcodecs.IMREAD_UNCHANGED));
+        return standardize(Imgcodecs.imdecode(new MatOfByte(byteArrayOutputStream.toByteArray()), Imgcodecs.IMREAD_UNCHANGED), isReferecne);
     }
 
     public static BufferedImage mat2BufferedImage(Mat matrix)throws IOException {

@@ -60,6 +60,8 @@ public class MainController {
     private ComboBox<ReferenceImage> referenceSelection;
 
     @FXML
+    private TextField threads;
+    @FXML
     private TextField meldThreshold;
     @FXML
     private TextField minContourArea;
@@ -122,7 +124,7 @@ public class MainController {
                     @Override
                     public void run() {
                         System.out.println(file.getAbsolutePath());
-                        droppedImage = Utils.scaledImread(file.getAbsolutePath());
+                        droppedImage = Utils.scaledImread(file.getAbsolutePath(), false);
                         updateImage(droppedImage);
                     }
                 });
@@ -256,7 +258,7 @@ public class MainController {
                 .map(box -> MatBox.fromImage(box, rawImage, 5))
                 .collect(Collectors.toList());
 
-        Map<MatBox, String> identifications = identifier.identify(matBoxes);
+        Map<MatBox, String> identifications = identifier.identify(matBoxes, Integer.parseInt(threads.getText()));
         reinitializeSavedMelds(identifications);
         Mat textMat = rawImage.clone();
         for (var idEntry : identifications.entrySet()) {
@@ -311,7 +313,7 @@ public class MainController {
         for (File file: files) {
             if (file.isFile()) {
                 if (file.getName().toLowerCase().endsWith(".jpg")) {
-                    Mat mat = Utils.scaledImread(file.getPath());
+                    Mat mat = Utils.scaledImread(file.getPath(), true);
                     referenceImages.add(new ReferenceImage(file.getName(), mat));
                 }
             }
@@ -320,7 +322,7 @@ public class MainController {
     }
     //Reinitializes referenceImages in order to only show those who have inliers
     private void reinitializeReferences(MatBox meld) {
-
+        if (identifier.relevantReferences == null) return;
         Map<Mat,String> references = identifier.relevantReferences.get(meld);
         List <ReferenceImage> referenceImages = new ArrayList<>();
 
@@ -412,7 +414,7 @@ public class MainController {
             BufferedImage img = webcamSelection.getValue().webcam.getImage();
             Mat mat = null;
             try {
-                mat = Utils.bufferedImage2StandardizedMat(img);
+                mat = Utils.bufferedImage2StandardizedMat(img, false);
             } catch (IOException e) {
                 e.printStackTrace();
                 return;
