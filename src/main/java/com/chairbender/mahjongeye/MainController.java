@@ -69,9 +69,6 @@ public class MainController {
     @FXML
     private BorderPane borderPane;
 
-    @FXML
-    private CheckBox displayMatchesToggle;
-
     @Autowired
     private Identifier identifier;
 

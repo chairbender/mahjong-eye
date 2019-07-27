@@ -10,10 +10,11 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -86,6 +87,8 @@ public class Identifier {
             "    type: 8\n" +
             "    value: 1";
 
+    private ExecutorService executorService = Executors.newCachedThreadPool();
+
     @Autowired
     private MahjongEyeConfig config;
     private static final int MIN_MATCH_COUNT = 4;
@@ -95,9 +98,7 @@ public class Identifier {
     private DescriptorMatcher flannMatcher;
     private KAZE kaze;
 
-    public HashMap<MatBox,Map<Mat,String>> relevantReferences = new HashMap<>();
-
-    private HashMap<Mat,String> references = new HashMap<>();
+    public HashMap<MatBox,Map<Mat,String>> relevantReferences;
 
     @PostConstruct
     private void init() throws IOException {
@@ -164,36 +165,46 @@ public class Identifier {
      */
     public Map<MatBox, String> identify(List<MatBox> melds) {
 
+        relevantReferences = new HashMap<>();
         var result = new HashMap<MatBox, String>();
-        var i = 0;
         for (MatBox meld : melds) {
-            System.out.println("Checking meld " + i++);
-            //compare to all reference images
-            long max = 0;
-            String bestmatch = "?";
+            var futures = new LinkedList<Future<InlierResult>>();
+            //create futures to run our inlier method in parallel
             for (Map.Entry<String, Mat> referenceEntry : nameToReferenceImage.entrySet()) {
-                System.out.println("Comparing to " + referenceEntry.getKey());
-                var inliers = findInliers(meld.getMat(), referenceEntry.getValue());
-                System.out.println("Number of Inliers: " + inliers);
-                if (inliers > max) {
-                    max = inliers;
-                    bestmatch = referenceEntry.getKey();
-                }
-
-                if (inliers != 0) {
-                    if (bestmatch == referenceEntry.getKey()) {
-                        references.put(referenceEntry.getValue(), referenceEntry.getKey() + "  (BestMatch)");
-                    } else {
-                        references.put(referenceEntry.getValue(), referenceEntry.getKey());
-                    }
-                }
-
+                futures.add(executorService.submit(() -> findInliers(meld, referenceEntry.getValue(), referenceEntry.getKey())));
             }
-            result.put(meld, bestmatch);
-            relevantReferences.put(meld, references);
-            references = new HashMap<>();
+
+            //check the values returned by our parallel tasks
+            long max = 0;
+            InlierResult bestResult = null;
+            var referenceMatToLabel = new HashMap<Mat, String>();
+            for (var future : futures) {
+                //await completion of the future
+                InlierResult inliers = null;
+                try {
+                    inliers = future.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                    continue;
+                }
+
+                if (inliers.inlierCount > max) {
+                    bestResult = inliers;
+                    max = bestResult.inlierCount;
+                }
+                if (inliers.inlierCount > 0) {
+                    referenceMatToLabel.put(nameToReferenceImage.get(inliers.referenceName), inliers.referenceName + "(" + inliers.inlierCount + ")");
+                }
+            }
+
+            if (bestResult != null) {
+                referenceMatToLabel.put(nameToReferenceImage.get(bestResult.referenceName), bestResult.referenceName + "(" + bestResult.inlierCount + " Best Match)");
+                result.put(bestResult.srcMeld, bestResult.referenceName);
+            }
+
+            relevantReferences.put(meld, referenceMatToLabel);
         }
-        System.out.println(result);
+
         return result;
     }
 
@@ -201,13 +212,14 @@ public class Identifier {
      * Uses KAZE to find inliers, returns the count of inliers
      *
      */
-    private long findInliers(Mat src, Mat reference) {
+    private InlierResult findInliers(MatBox src, Mat reference, String referenceName) {
         //based on this
         //https://docs.opencv.org/3.4/d7/dff/tutorial_feature_homography.html
+        System.out.println("Comparing to " + referenceName);
 
         MatOfKeyPoint kpSrc = new MatOfKeyPoint();
         Mat desSrc = new Mat();
-        kaze.detectAndCompute(src, new Mat(), kpSrc, desSrc);
+        kaze.detectAndCompute(src.getMat(), new Mat(), kpSrc, desSrc);
         MatOfKeyPoint kpRef = new MatOfKeyPoint();
         Mat desRef = new Mat();
         kaze.detectAndCompute(reference, new Mat(), kpRef, desRef);
@@ -249,10 +261,12 @@ public class Identifier {
             Mat mask = new Mat();
             Calib3d.findHomography( srcMat, refMat, Calib3d.RANSAC, 5.0, mask);
             //I think this is okay...we just need the size of the mask, that's our inlier count
-            return mask.total();
+            System.out.println("Done comparing to " + referenceName);
+            return new InlierResult(referenceName, mask.total(), src);
         } else {
             //not enough matches
-            return 0;
+            System.out.println("Done comparing to " + referenceName);
+            return new InlierResult(referenceName, 0, src);
         }
 
     }
@@ -300,4 +314,15 @@ public class Identifier {
         }
     }
 
+    private static class InlierResult {
+        private String referenceName;
+        private long inlierCount;
+        private MatBox srcMeld;
+
+        public InlierResult(String referenceName, long inlierCount, MatBox srcMeld) {
+            this.referenceName = referenceName;
+            this.inlierCount = inlierCount;
+            this.srcMeld = srcMeld;
+        }
+    }
 }
